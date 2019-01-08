@@ -165,16 +165,16 @@ class GroupProtocol(base.ChatangoProtocol):
 	async def _recv_ok(self, args):
 		'''ACK that login succeeded'''
 		if args[2] == 'C':
-			if not self._manager.username:
-				self.send_command("blogin", self._manager.usernme)
+			if self._manager.username:
+				self.send_command("blogin", self._manager.username)
 			else:
 				aid = self._storage._aid
 				if aid is not None:
 					ncolor = generate.reverse_aid(aid, args[1])
 				else:
 					ncolor = generate.anon_ncolor()
-				self._storage._aid = generate.aid(ncolor, args[1])
 				self._storage._n_color = ncolor
+				self._storage._aid = generate.aid(ncolor, args[1])
 		else:
 			self._storage._aid = None
 		#shouldn't be necessary, but if the room assigns us a new id
