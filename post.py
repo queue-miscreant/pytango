@@ -88,7 +88,8 @@ class Post:
 	Objects that represent messages in chatango
 	Post objects have support for channels and formatting parsing
 	'''
-	def __init__(self, post, time, group: base.Connection, **kwargs):
+	def __init__(self, time: float, post: str, group: base.Connection
+	, **kwargs):
 		self.time = time
 		self.post = format_raw(post)
 		self.group = group
@@ -105,7 +106,7 @@ class Post:
 			if raw[2]: #temp name
 				user = '#' + raw[2]
 			else:
-				user = "!anon" + generate.aid(n_color, uid)
+				user = "!anon" + generate.aid(n_color, raw[3])
 			#n_color doesn't count for anons, because it changes their number
 			n_color = ''
 		else:
@@ -120,7 +121,7 @@ class Post:
 		channel = (channels_and_badge >> 8) & 31
 		channel = channel&1|((channel&8)>>2)|((channel&16)>>3)
 
-		return cls(raw[0], ':'.join(raw[9:]), group, user=user
+		return cls(float(raw[0]), ':'.join(raw[9:]), group, user=user
 			, mod_id=raw[4], unid=None, pnum=None, ip=raw[6]
 			, channel=channel, badge=badge
 			, n_color=n_color, f_color=f_color, f_size=f_size, f_face=f_face)

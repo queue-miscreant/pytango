@@ -41,12 +41,22 @@ class User:
 	def __str__(self):
 		return self._name
 
+	def __format__(self, _):
+		ret = self._name
+		if len(self._sessions) > 1:
+			ret += " ({})".format(len(self._sessions))
+		return ret
+
 	#for sets
 	def __hash__(self):
 		return hash(self._name.lower())
 
-	def __eq__(self, other: str):
-		return self._name.lower() == other.lower()
+	def __eq__(self, other):
+		if isinstance(other, type(self)):
+			return self._name.lower() == other.name.lower()
+		if isinstance(other, str):
+			return self._name.lower() == other.lower()
+		return False
 
 	@classmethod
 	def init_mod(cls, group, args):
@@ -87,12 +97,12 @@ class User:
 		#handle moderators changed
 		for mod in group.mods:
 			if mod == username:
-				mod.new_session(args[2], args[6])
+				mod.new_session(args[2], args[1])
 				return mod
 		#handle user changed
 		for user in group.users:
 			if user == username:
-				user.new_session(args[2], args[6])
+				user.new_session(args[2], args[1])
 				return user
 		return cls(group, args[3], unid=args[2], join_time=args[1])
 
@@ -155,8 +165,8 @@ class GroupProtocol(base.ChatangoProtocol):
 	async def _recv_ok(self, args):
 		'''ACK that login succeeded'''
 		if args[2] == 'C':
-			if not self._manager.password:
-				self.send_command("blogin", self._manager.username)
+			if not self._manager.username:
+				self.send_command("blogin", self._manager.usernme)
 			else:
 				aid = self._storage._aid
 				if aid is not None:
@@ -168,7 +178,7 @@ class GroupProtocol(base.ChatangoProtocol):
 		else:
 			self._storage._aid = None
 		#shouldn't be necessary, but if the room assigns us a new id
-		self._uid = args[1]
+		self._uid = int(args[1])
 		self._storage._owner = args[0]
 		self._storage._mods = set(User.init_mod(self._storage
 			, mod.split(',')) for mod in args[6].split(';')) \
@@ -414,6 +424,8 @@ class Group(base.Connection):
 		if not self._protocol._manager.password:
 			ret = '#' + ret
 		return ret
+	session_id = property(lambda self: self._protocol._uid
+		, doc="Session ID")
 	name = property(lambda self: self._name
 		, doc="Name of the group")
 	owner = property(lambda self: self._owner
@@ -481,7 +493,7 @@ class Group(base.Connection):
 
 	def set_anon(self, id_number: int):
 		'''Set anon ID to 4 digit number `id_number`'''
-		if self._protocol._uid:
+		if self.owner is not None: #received an ok
 			self._n_color = generate.reverse_aid(str(id_number), self._aid)
 		else:
 			self._aid = str(id_number % 10000).zfill(4)

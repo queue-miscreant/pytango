@@ -30,11 +30,11 @@ _SPECIALS = {
 	, "eafangames": 56, "myfoxdfw": 67, "peliculas-flv": 69, "narutochatt": 70
 }
 
-def uid():
+def uid() -> str:
 	'''Generate unique ID for a group. Might be reset by the server'''
 	return str(int(random.randrange(10 ** 15, (10 ** 16) - 1)))
 
-def aid(ncolor, group_id):
+def aid(ncolor: str, group_id: str) -> str:
 	'''Generate 4 digit anon ID'''
 	try:
 		ncolor = ncolor.rsplit('.', 1)[0]
@@ -45,16 +45,16 @@ def aid(ncolor, group_id):
 	return "".join(map(lambda i, v: str((int(i) + int(v)) % 10)
 		, ncolor, group_id[4:8]))
 
-def anon_ncolor():
+def anon_ncolor() -> str:
 	'''Random 4 digit 'color' used to calculate anon id'''
 	return str(random.randrange(0, 10000)).zfill(4)[:4]
 
-def reverse_aid(goal, group_id):
+def reverse_aid(goal, group_id) -> str:
 	'''Reverse-generate anon ID'''
 	return "".join(map(lambda g, v: str((int(g) - int(v)) % 10)
 		, goal, group_id[4:8]))
 
-def server_num(group):
+def server_num(group) -> int:
 	'''Return server number, or -1 if no server found'''
 	#this is black magic I got from ch.py
 	if group in _SPECIALS:
