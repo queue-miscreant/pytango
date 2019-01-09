@@ -22,9 +22,9 @@ class User:
 	def __init__(self, group, name, unid=None, join_time=None, mod_flags=0):
 		self._name = name
 		self._group = group
-		self._sessions = {
-			int(unid):		float(join_time)
-		}
+		self._sessions = {}
+		if unid is not None and join_time is not None:
+			self.new_session(unid, join_time)
 		self._mod_flags = ModFlags(mod_flags)
 
 	name = property(lambda self: self._name
@@ -328,7 +328,7 @@ class GroupProtocol(base.ChatangoProtocol):
 
 	async def _recv_groupflagsupdate(self, args):
 		'''Flags updated'''
-		self._storage._settings = GroupFlags(int(args[1]))
+		self._storage._settings = GroupFlags(int(args[0]))
 		self._call_event("on_settings_update")
 
 	async def _recv_updgroupinfo(self, args):
