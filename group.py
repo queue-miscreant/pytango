@@ -18,6 +18,7 @@ class User:
 	User in a particular Group.
 	Contains all sessions the user belongs to and moderator flags.
 	'''
+	_AVATAR_URL = "http://fp.chatango.com/profileimg/{}/{}/{}/full.jpg"
 	def __init__(self, group, name, unid=None, join_time=None, mod_flags=0):
 		self._name = name
 		self._group = group
@@ -37,6 +38,14 @@ class User:
 		, doc="Float representing earliest join time")
 	mod_flags = property(lambda self: self._mod_flags
 		, doc="ModFlags containing moderator permissions")
+	@property
+	def avatar(self):
+		'''A url that points to the user's avatar image'''
+		ch0 = self._name[0]
+		ch1 = ch0
+		if len(self._name) > 1:
+			ch1 = self._name[1]
+		return self._AVATAR_URL.format(ch0, ch1, self._name)
 
 	def __str__(self):
 		return self._name
@@ -112,7 +121,9 @@ class User:
 
 	def remove_session(self, unid):
 		'''Remove entry from sessions. Used internally on user left'''
-		del self._sessions[int(unid)]
+		unid = int(unid)
+		if unid in self._sessions:
+			del self._sessions[int(unid)]
 
 	def new_session(self, unid, join_time):
 		'''Add entry to sessions. Used internally on user joined'''
