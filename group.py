@@ -41,11 +41,12 @@ class User:
 	@property
 	def avatar(self):
 		'''A url that points to the user's avatar image'''
-		ch0 = self._name[0]
+		name = self._name.lower()
+		ch0 = name[0]
 		ch1 = ch0
-		if len(self._name) > 1:
-			ch1 = self._name[1]
-		return self._AVATAR_URL.format(ch0, ch1, self._name)
+		if len(name) > 1:
+			ch1 = name[1]
+		return self._AVATAR_URL.format(ch0, ch1, name)
 
 	def __str__(self):
 		return self._name
