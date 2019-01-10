@@ -1,6 +1,22 @@
 import asyncio
 from . import generate
 
+#enumerable constants
+FONT_FACES = [
+	  "Arial"
+	, "Comic Sans"
+	, "Georgia"
+	, "Handwriting"
+	, "Impact"
+	, "Palatino"
+	, "Papyrus"
+	, "Times New Roman"
+	, "Typewriter"
+]
+#limited sizes available for non-premium accounts
+FONT_SIZES = [9, 10, 11, 12, 13, 14]
+CHANNEL_NAMES = ["None", "Red", "Blue", "Both"]
+
 class ChatangoProtocol(asyncio.Protocol):
 	'''Virtual class interpreting chatango's protocol'''
 	_PING_DELAY = 15
@@ -111,10 +127,18 @@ class Connection:
 	# Properties
 	####################################
 
-	n_color = property(lambda self: self._n_color)
-	f_color = property(lambda self: self._f_color)
-	f_size = property(lambda self: self._f_size)
-	f_face = property(lambda self: self._f_face)
+	n_color = property(lambda self: self._n_color
+		, doc="Name color formatting. Cannot set while anonymous.")
+	f_color = property(lambda self: self._f_color
+		, doc="Main post color formatting.")
+	f_size = property(lambda self: self._f_size
+		, doc="Font size. Limited to integers 9-14")
+	@property
+	def f_face(self):
+		'''Font face. Can be an integer or valid font name.'''
+		if isinstance(self._f_face, int):
+			return FONT_FACES[self._f_face]
+		return self._f_face
 
 	@n_color.setter
 	def n_color(self, arg: str):
@@ -139,8 +163,13 @@ class Connection:
 		self._f_size = min(22, max(9, arg))
 
 	@f_face.setter
-	def f_face(self, arg: int):
-		self._f_face = arg
+	def f_face(self, arg):
+		if isinstance(arg, str):
+			if not arg.isdigit():
+				self._f_face = arg
+				return
+			arg = int(arg)
+		self._f_face = min(len(FONT_FACES), max(0, arg))
 
 class Flags:
 	'''Base class that explains bitwise flags and can set/clear them'''

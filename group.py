@@ -485,8 +485,8 @@ class Group(base.Connection):
 					self.send_post(sect, channel, html=True)
 			return
 		self._protocol.send_command("bm", "meme", str(channel)
-			, "<n{}/><f x{:02d}{}=\"{}\">{}".format(self.n_color, self.f_size
-			, self.f_color, self.f_face, post))
+			, ("<n{0._n_color}/><f x{0._f_size:02d}{0._f_color}="\
+			  "\"{0._f_face}\">{1}").format(self, post))
 
 	def get_more(self, amt=20):
 		'''Get more historical messages'''
@@ -499,7 +499,7 @@ class Group(base.Connection):
 		if self.username == self._owner:
 			return True
 		for mod in self._mods:
-			if self.username == str(mod.user):
+			if mod.name == self.username:
 				return bool(mod.mod_flags & flags)
 		return False
 
@@ -508,7 +508,7 @@ class Group(base.Connection):
 		if self.owner is not None: #received an ok
 			self._n_color = generate.reverse_aid(str(id_number), self._aid)
 		else:
-			self._aid = str(id_number % 10000).zfill(4)
+			self._aid = str(int(id_number) % 10000).zfill(4)
 
 	###########################################################################
 	# Moderation

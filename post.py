@@ -13,22 +13,6 @@ XML_TAG_RE = re.compile("(</?(.*?)/?>)")
 THUMBNAIL_FIX_RE = re.compile(r"(https?://ust\.chatango\.com/.+?/)t(_\d+.\w+)")
 REPLY_RE = re.compile(r"@(\w+?)\b")
 
-#enumerable constants
-FONT_FACES = [
-	  "Arial"
-	, "Comic Sans"
-	, "Georgia"
-	, "Handwriting"
-	, "Impact"
-	, "Palatino"
-	, "Papyrus"
-	, "Times New Roman"
-	, "Typewriter"
-]
-#limited sizes available for non-premium accounts
-FONT_SIZES = [9, 10, 11, 12, 13, 14]
-CHANNEL_NAMES = ["None", "Red", "Blue", "Both"]
-
 HTML_CODES = [
 	  ("&#39;", "'")
 	, ("&gt;", '>')
@@ -38,8 +22,10 @@ HTML_CODES = [
 	, ("&amp;", '&')
 ]
 
+#TODO premium users can use literal fonts, which make f_face into a string instead of int
 def parse_formatting(raw):
-	n_color, f_color, f_size, f_face = '', '', 11, 0
+	'''Parse the strange proprietary HTML formatting tags that chatango has'''
+	n_color, f_color, f_size, f_face = '', '', 11, base.FONT_FACES[0]
 	tag = POST_TAG_RE.search(raw)
 	if tag:
 		n_color = tag.group(2) or ''
@@ -48,13 +34,15 @@ def parse_formatting(raw):
 			if len(size_color) % 3 == 2:	#color and font size
 				f_size = int(size_color[:2])
 				f_color = size_color[2:]
-			else:
+			else:							#no font size
 				f_color = size_color
-				f_size = 11
-		else:
-			f_color = ''
-			f_size = 11
-		f_face = int(tag.group(5) or 0)
+		f_face = tag.group(5)
+		try:
+			f_face = base.FONT_FACES[int(f_face)]
+		except (TypeError, IndexError): #f_face is None or invalid index
+			f_face = base.FONT_FACES[0]
+		except ValueError: #conversion failed, literal font name
+			pass
 	return n_color, f_color, f_size, f_face
 
 def format_raw(raw):
@@ -96,6 +84,13 @@ class Post:
 		self.group = group
 		self.__dict__.update(kwargs)
 
+	def __eq__(self, other):
+		if not hasattr(self, "unid"):
+			return False
+		if isinstance(other, type(self)):
+			return self.unid == other.unid
+		return self.unid == other
+
 	@classmethod
 	def _base(cls, group: base.Connection, raw):
 		n_color, f_color, f_size, f_face = \
@@ -118,13 +113,13 @@ class Post:
 					user = user
 					break
 
-		mentions = []
+		mentions = set()
 		for mention in REPLY_RE.findall(message):
 			for group_user in group._users:
 				if group_user == mention:
 					mention = group_user
 					break
-			mentions.append(mention)
+			mentions.add(mention)
 
 		channels_and_badge = int(raw[7])
 		#magic that turns no badge into 0, mod badge into 1, and staff badge into 2
