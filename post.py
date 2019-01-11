@@ -22,7 +22,6 @@ HTML_CODES = [
 	, ("&amp;", '&')
 ]
 
-#TODO premium users can use literal fonts, which make f_face into a string instead of int
 def parse_formatting(raw):
 	'''Parse the strange proprietary HTML formatting tags that chatango has'''
 	n_color, f_color, f_size, f_face = '', '', 11, base.FONT_FACES[0]
