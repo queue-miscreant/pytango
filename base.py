@@ -96,6 +96,7 @@ class ChatangoProtocol(asyncio.Protocol):
 			self._ping_task.cancel()
 			self._ping_task = None
 		self.connected = raise_error
+		self._call_event("on_disconnect")
 
 	async def ping(self):
 		'''Send a ping to keep the transport alive'''

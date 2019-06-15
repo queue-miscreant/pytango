@@ -6,9 +6,11 @@ Implements an asyncio-compatible protocol and provides classes for parsing raw
 group data like users, bans, and moderator actions.
 '''
 import json
+import html
 from urllib import parse
+
 from . import base, generate
-from .post import Post, HTML_CODES
+from .post import Post
 
 BIGMESSAGE_CUT = 0
 BIGMESSAGE_MULTIPLE = 1
@@ -464,25 +466,24 @@ class Group(base.Connection):
 	modlog = property(lambda self: self._modlog.copy()
 		, doc="A list of ModLog objects: the most recent moderator actions")
 
-	def send_post(self, post: str, channel=0, html=False, badge=0):
+	def send_post(self, post: str, channel=0, replace_html=True, badge=0):
 		'''Send a post to the group'''
 		#TODO allow badge sending
 		if not post:
 			return
 		channel = (((channel&2)<<2 | (channel&1))<<8)
-		if not html:
+		if replace_html:
 			#replace HTML equivalents
-			for i, j in reversed(HTML_CODES):
-				post = post.replace(j, i)
+			post = html.escape(post)
 			post = post.replace('\n', "<br/>")
 		if len(post) > self._MAX_LENGTH:
 			if self._TOO_BIG_MESSAGE == BIGMESSAGE_CUT:
-				self.send_post(post[:self._MAX_LENGTH], channel=channel, html=True)
+				self.send_post(post[:self._MAX_LENGTH], channel=channel, replace_html=False)
 			elif self._TOO_BIG_MESSAGE == BIGMESSAGE_MULTIPLE:
 				while post:
 					sect = post[:self._MAX_LENGTH]
 					post = post[self._MAX_LENGTH:]
-					self.send_post(sect, channel, html=True)
+					self.send_post(sect, channel, replace_html=False)
 			return
 		self._protocol.send_command("bm", "meme", str(channel)
 			, ("<n{0._n_color}/><f x{0._f_size:02d}{0._f_color}="\

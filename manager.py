@@ -29,7 +29,7 @@ class Manager:
 	Creates and manages connections to Chatango.
 	Also propagates events from joined groups
 	'''
-	def __init__(self, username, password, pm=False, loop=None):
+	def __init__(self, username: str, password: str, pm=False, loop=None):
 		self.loop = asyncio.get_event_loop() if loop is None else loop
 		self._groups = []
 		self.privates = None
@@ -73,7 +73,7 @@ class Manager:
 		setattr(cls, eventname, partial(func, ancestor=ancestor))
 
 	async def join_group(self, group_name: str, port=443):
-		'''Join group `group_name`'''
+		'''(Coro) Join group `group_name`'''
 		group_name = group_name.lower()
 		server = generate.server_num(group_name)
 		if server is None:
@@ -98,7 +98,7 @@ class Manager:
 			raise ValueError("attempted to join group multiple times")
 
 	async def leave_group(self, group_name):
-		'''Leave group `group_name`'''
+		'''(Coro) Leave group `group_name`'''
 		if isinstance(group_name, group.Group):
 			group_name = group_name.name
 		for index, gro in enumerate(self._groups):
@@ -107,7 +107,7 @@ class Manager:
 				self._groups.pop(index)
 
 	async def join_pm(self, port=5222):
-		'''Log into private messages and return Connection'''
+		'''(Coro) Log into private messages and return Connection'''
 		if self.privates is None:
 			try:
 				authkey = private.pm_auth(self.username, self.password)
@@ -120,13 +120,13 @@ class Manager:
 		return self.pm
 
 	async def leave_pm(self):
-		'''If logged into private messages, log out'''
+		'''(Coro) If logged into private messages, log out'''
 		if self.privates is not None:
 			await self.privates._protocol.disconnect()
 			self.privates = None
 
 	async def leave_all(self):
-		'''Disconnect from all groups and PMs'''
+		'''(Coro) Disconnect from all groups and PMs'''
 		for gro in self._groups:
 			await gro._protocol.disconnect()
 		self._groups.clear()

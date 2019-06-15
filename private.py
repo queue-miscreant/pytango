@@ -13,9 +13,11 @@ Implements an asyncio-compatible protocol.
 #		pending checking if `getblock` is "get tracking block" or "get blocklist" (which is null)
 #
 import re
+import html
+
 from urllib import parse, request
 from . import base
-from .post import HTML_CODES, Post
+from .post import Post
 
 def pm_auth(username, password):
 	'''Request auth cookie for PMs'''
@@ -139,10 +141,9 @@ class Privates(base.Connection):
 		self._watch = {}	#analogous to a friends list, but not mutual
 		self._track = {}	#dict of users to whom `track` has been issued
 
-	def send_post(self, user, post, html=False):
-		if not html:
+	def send_post(self, user, post, replace_html=True):
+		if replace_html:
 			#replace HTML equivalents
-			for i, j in reversed(HTML_CODES):
-				post = post.replace(j, i)
+			post = html.escape(post)
 			post = post.replace('\n', "<br/>")
 		self._protocol.send_command("msg", user, "<m>{}</m>".format(post))

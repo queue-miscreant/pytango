@@ -5,6 +5,7 @@ Post formatting classes. Takes data received from chatango and formats HTML
 out, makes formatting easily accessible, and provides mod interfaces.
 '''
 import re
+import html
 from . import generate, base
 
 POST_TAG_RE = re.compile("(<n([a-fA-F0-9]{1,6})\\/>)?" \
@@ -12,15 +13,6 @@ POST_TAG_RE = re.compile("(<n([a-fA-F0-9]{1,6})\\/>)?" \
 XML_TAG_RE = re.compile("(</?(.*?)/?>)")
 THUMBNAIL_FIX_RE = re.compile(r"(https?://ust\.chatango\.com/.+?/)t(_\d+.\w+)")
 REPLY_RE = re.compile(r"@(\w+?)\b")
-
-HTML_CODES = [
-	  ("&#39;", "'")
-	, ("&gt;", '>')
-	, ("&lt;", '<')
-	, ("&quot;", '"')
-	, ("&apos;", "'")
-	, ("&amp;", '&')
-]
 
 def parse_formatting(raw):
 	'''Parse the strange proprietary HTML formatting tags that chatango has'''
@@ -61,9 +53,7 @@ def format_raw(raw):
 			rep = '\n'
 		raw = raw[:start-acc] + rep + raw[end-acc:]
 		acc += end-start - len(rep)
-	raw.replace("&nbsp;", ' ')
-	for i, j in HTML_CODES:
-		raw = raw.replace(i, j)
+	raw = html.unescape(raw)
 	#remove trailing \n's
 	while raw and raw[-1] == "\n":
 		raw = raw[:-1]
