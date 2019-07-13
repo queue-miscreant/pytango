@@ -117,7 +117,7 @@ class Post:
 		channel = (channels_and_badge >> 8) & 31
 		channel = channel&1|((channel&8)>>2)|((channel&16)>>3)
 
-		return cls(float(raw[0]), message, group, user=user
+		return cls(float(raw[0]), message, group, user=user, user_id=uid
 			, mod_id=raw[4], unid=None, pnum=None, ip=raw[6]
 			, mentions=mentions, channel=channel, badge=badge
 			, n_color=n_color, f_color=f_color, f_size=f_size, f_face=f_face)
@@ -190,3 +190,7 @@ class Post:
 				self.group.ban(self)
 		except AttributeError:
 			pass
+
+	def my_message(self):
+		'''Returns whether a message was sent by the group object it's associated with'''
+		return str(self.group.session_id).find(str(self.user_id)) == 0

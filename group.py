@@ -7,6 +7,7 @@ group data like users, bans, and moderator actions.
 '''
 import json
 import html
+import asyncio
 from urllib import parse
 
 from . import base, generate
@@ -17,27 +18,32 @@ BIGMESSAGE_MULTIPLE = 1
 
 class User:
 	'''
-	User in a particular Group.
-	Contains all sessions the user belongs to and moderator flags.
+	User in a particular Group. Contains all clients (i.e. browser tabs) the
+	user belongs to and moderator flags.
 	'''
+	#TODO? args[2] in participants and gparticipants (for individual users)
+	#	contains the first 8 digits of the session ID; it is consistent across
+	#	browser tabs and usernames, but not between browsers
 	_AVATAR_URL = "http://fp.chatango.com/profileimg/{}/{}/{}/full.jpg"
-	def __init__(self, group, name, unid=None, join_time=None, mod_flags=0):
+	def __init__(self, group, name: str, unid=None, join_time=None, mod_flags=0):
 		self._name = name
 		self._group = group
-		self._sessions = {}
+		self._clients = {}
 		if unid is not None and join_time is not None:
-			self.new_session(unid, join_time)
+			self.new_client(unid, join_time)
 		self._mod_flags = ModFlags(mod_flags)
 
 	name = property(lambda self: self._name
 		, doc="Display name")
 	group = property(lambda self: self._group
 		, doc="Group the User belongs to")
-	sessions = property(lambda self: self._sessions.copy()
-		, doc="Dict whose keys are session IDs and values are join times")
-	join_time = property(lambda self: min(self._sessions.values()) \
-			if self._sessions else 0
+	clients = property(lambda self: self._clients.copy()
+		, doc="Dict whose keys are client IDs and values are join times")
+	join_time = property(lambda self: min(self._clients.values()) \
+			if self._clients else 0
 		, doc="Float representing earliest join time")
+	joined = property(lambda self: bool(self._clients)
+		, doc = "Whether the user currently exists within the group")
 	mod_flags = property(lambda self: self._mod_flags
 		, doc="ModFlags containing moderator permissions")
 	@property
@@ -50,13 +56,17 @@ class User:
 			ch1 = name[1]
 		return self._AVATAR_URL.format(ch0, ch1, name)
 
+	def __repr__(self):
+		return "{}({}, {})".format(type(self).__name__
+			, repr(self._name), set(self._clients))
+
 	def __str__(self):
 		return self._name
 
 	def __format__(self, _):
 		ret = self._name
-		if len(self._sessions) > 1:
-			ret += " ({})".format(len(self._sessions))
+		if len(self._clients) > 1:
+			ret += " ({})".format(len(self._clients))
 		return ret
 
 	#for sets
@@ -72,7 +82,7 @@ class User:
 
 	@classmethod
 	def init_mod(cls, group, args):
-		for user in group.users:
+		for user in group._users:
 			if user == args[0]:
 				user.promote(args[1])
 				return user
@@ -80,26 +90,46 @@ class User:
 
 	@classmethod
 	def init_participant(cls, group, args):
+		'''
+		Initializer for instance based on `participant` args.
+		Returns a 2-tuple of appropriate User (or str) and and bool signifying:
+		False:	User left
+		True:	User joined
+		'''
+		joined = int(args[0])
 		username = args[3]
-		if username == "None":
-			return None
 		#handle moderators changed
 		for mod in group.mods:
 			if mod == username:
-				if args[0] == '0':
-					mod.remove_session(args[2])
+				if joined:
+					mod.new_client(args[1], args[6])
 				else:
-					mod.new_session(args[2], args[6])
-				return mod
+					mod.remove_client(args[1])
+				return mod, bool(joined)
+			#user logout occurred
+			if joined == 2 and int(args[1]) in mod.clients:
+				mod.remove_client(args[1])
+				return mod, False
 		#handle user changed
-		for user in group.users:
+		for user in group._users:
 			if user == username:
-				if args[0] == '0':
-					user.remove_session(args[2])
+				if joined:
+					user.new_client(args[1], args[6])
 				else:
-					user.new_session(args[2], args[6])
-				return user
-		return cls(group, username, unid=args[2], join_time=args[6])
+					user.remove_client(args[1])
+				return user, bool(joined)
+			#user logout occurred
+			if joined == 2 and int(args[1]) in user.clients:
+				user.remove_client(args[1])
+				return user, False
+		#anon or user name setting occurred
+		if username == "None":
+			if joined == 2:
+				username = args[4]
+			else:
+				username = "anon"
+			return username, True
+		return cls(group, username, unid=args[1], join_time=args[6]), True
 
 	@classmethod
 	def init_g_participant(cls, group, args):
@@ -109,28 +139,28 @@ class User:
 		#handle moderators changed
 		for mod in group.mods:
 			if mod == username:
-				mod.new_session(args[2], args[1])
+				mod.new_client(args[0], args[1])
 				return mod
 		#handle user changed
 		for user in group.users:
 			if user == username:
-				user.new_session(args[2], args[1])
+				user.new_client(args[0], args[1])
 				return user
-		return cls(group, args[3], unid=args[2], join_time=args[1])
+		return cls(group, args[3], unid=args[0], join_time=args[1])
 
 	def promote(self, flags):
 		'''Set the mod flags. Used internally when mods are promoted/demoted'''
 		self._mod_flags = ModFlags(int(flags))
 
-	def remove_session(self, unid):
-		'''Remove entry from sessions. Used internally on user left'''
+	def remove_client(self, unid):
+		'''Remove entry from clients. Used internally on user left'''
 		unid = int(unid)
-		if unid in self._sessions:
-			del self._sessions[int(unid)]
+		if unid in self._clients:
+			del self._clients[int(unid)]
 
-	def new_session(self, unid, join_time):
-		'''Add entry to sessions. Used internally on user joined'''
-		self._sessions[int(unid)] = float(join_time)
+	def new_client(self, unid, join_time):
+		'''Add entry to clients. Used internally on user joined'''
+		self._clients[int(unid)] = float(join_time)
 
 class Ban:
 	def __init__(self, user: str, ip: str, unid: str, mod: User, time: float):
@@ -160,13 +190,13 @@ class GroupProtocol(base.ChatangoProtocol):
 	def __init__(self, room, manager, loop=None):
 		super().__init__(manager, Group(self, room), loop=loop)
 		#intermediate message stuff and aux data for commands
-		self._messages = {}
-		self._updates = {}
-		self._history = []
-		self._last_message = 0
-		self._history_count = 0
-		self._no_more = False
-		self._last_modlog = 0
+		self._messages = {}			#temp message dict for u command lookups
+		self._updates = {}			#same as above, but inverted; in case messages get mismatched
+		self._history = []			#internal buffer for accumulating historical messages
+		self._last_message = 0		#unix epoch of last time message received
+		self._history_count = 0		#number of times history has been retrieved
+		self._no_more = False		#no more historical messages from the server
+		self._last_modlog = 0		#last mod log update; dubiously work
 
 	def connection_made(self, transport):
 		'''Begins communication with the server and connects to the room'''
@@ -192,6 +222,7 @@ class GroupProtocol(base.ChatangoProtocol):
 		else:
 			self._storage._aid = None
 		#shouldn't be necessary, but if the room assigns us a new id
+		print(args)
 		self._uid = int(args[1])
 		self._storage._owner = args[0]
 		self._storage._mods = set(User.init_mod(self._storage
@@ -213,43 +244,33 @@ class GroupProtocol(base.ChatangoProtocol):
 		self.send_command("getpremium", '1')	#try to turn on premium features
 		self.send_command("getbannedwords")		#what it says on the tin
 		self.send_command("getratelimit")		#get posts allowed per n seconds
+		self._storage._ready.set()
 		self._call_event("on_connect")
 		self._call_event("on_history_done", self._history.copy()) #clone history
 		self._history.clear()
 
 	async def _recv_gparticipants(self, args):
 		'''Command that contains information of current room members'''
+		self._storage._users.clear()
 		#gparticipants splits people by ;
 		people = ':'.join(args[1:]).split(';')
 		#room is empty except anons
-		if people != ['']:
+		if people[0]:
 			for person in people:
 				self._storage._users.add(
 					User.init_g_participant(self._storage, person.split(':')))
+		print(self._storage.users, self._uid, args)
 		self._call_event("on_participants")
 
 	async def _recv_participant(self, args):
 		'''New member joined or left'''
-		joined = args[0]
-		participant = User.init_participant(self._storage, args)
-		if joined == '0':	#left
-			if participant is None:
-				participant = "anon"
-			#modifications to sessions are only when there was a session, so
-			#this should be fine
-			elif not participant.sessions:
-				self._storage._users.remove(participant)
-			self._call_event("on_member_leave", participant)
-		elif joined == '1':	#joined
-			if participant is None:
-				participant = "anon"
-			else:
+		participant, joined = User.init_participant(self._storage, args)
+		if joined:
+			if isinstance(participant, User):
 				self._storage._users.add(participant)
 			self._call_event("on_member_join", participant)
-		elif joined == '2': #blogins and bauth
-			if participant is None:
-				participant = args[4].lower()
-			self._call_event("on_member_join", participant)
+		else:
+			self._call_event("on_member_leave", participant)
 
 	async def _recv_n(self, args):
 		'''Number of users, in base 16'''
@@ -416,6 +437,7 @@ class Group(base.Connection):
 		self._owner = None				#owner of the server
 		self._users = set()
 		self._usercount = 0
+		self._ready = asyncio.Event()
 		#mod data
 		self._settings = None			#inited to mod flags in recv_ok if mod
 		self._mods = set()				#set of Users with mod_flags set
@@ -439,17 +461,19 @@ class Group(base.Connection):
 			ret = '#' + ret
 		return ret
 	session_id = property(lambda self: self._protocol._uid
-		, doc="Session ID")
+		, doc="Session ID. Different from client ID, which uniquely identifies each client/tab")
 	name = property(lambda self: self._name
 		, doc="Name of the group")
 	owner = property(lambda self: self._owner
 		, doc="Name of the owner of the group")
-	users = property(lambda self: self._users.copy()
+	users = property(lambda self: [user for user in self._users if user.clients]
 		, doc="List of Users in the group")
 	usercount = property(lambda self: self._usercount
 		, doc="User count")
 	last_message = property(lambda self: self._protocol._last_message
 		, doc="A float containing the time of the last post obtained")
+	ready = property(lambda self: self._ready.wait()
+		, doc="Awaitable property for when the group is fully connected")
 	#mod attributes
 	settings = property(lambda self: self._settings
 		, doc="GroupFlags currently active in the group or None, if not mod")
@@ -693,6 +717,10 @@ class Group(base.Connection):
 		if self.has_permission(32768):
 			GroupFlags.update(self._protocol
 				, (closed_without_mods, 65536), (broadcast, 131072), radio=True)
+
+	def reload_users(self):
+		self._protocol.send_command("gparticipants","stop")
+		self._protocol.send_command("gparticipants")
 
 	def display_badge(self, choose, force=False):
 		'''Set badge display settings'''

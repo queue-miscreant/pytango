@@ -4,7 +4,6 @@
 The manager class and associated helper functions. Provides a single unified
 object to manage all connections and interpret events.
 '''
-#TODO: possibly provide a better interface
 import asyncio
 from socket import gaierror
 from urllib import request
@@ -46,13 +45,37 @@ class Manager:
 		self.loop.set_exception_handler(_connection_lost_handler)
 
 	def __del__(self):
+		self.stop()
+
+	@classmethod
+	def start(cls, username: str, password: str, group_name: str, loop=None):
+		'''
+		Create a manager with the specified credentials and join group
+		`group_name` immediately. Returns 2-tuple of manager, group
+		Blocks until group has been joined
+		'''
+		return cls.loop.run_until_complete(cls.start_async(username, password
+			, group_name, loop=loop))
+
+	@classmethod
+	async def start_async(cls, username: str, password: str, group_name: str, loop=None):
+		'''
+		(Coro) Create a manager with the specified credentials and join group
+		`group_name` immediately.
+		'''
+		ret = cls(username, password, loop=loop)
+		ret_group = await ret.join_group(group_name)
+		await ret_group.ready
+		return ret, ret_group
+
+	def stop(self):
+		'''
+		Stop the Manager, disconnecting from all groups currently joined (unless
+		the event loop is already closed). Blocking equivalent to leave_all
+		'''
 		if self.loop.is_closed():
 			return
-		for i in self._groups:
-			#disconnect (and cancel all ping tasks)
-			self.loop.run_until_complete(i._protocol.disconnect())
-		if self.privates is not None:
-			self.loop.run_until_complete(self.privates._protocol.disconnect())
+		self.loop.run_until_complete(self.leave_all())
 
 	@classmethod
 	def add_event(cls, eventname, func):
