@@ -98,7 +98,7 @@ class Post:
 			n_color = ''
 		else:
 			for group_user in group._users:
-				if uid in group_user.sessions:
+				if uid in group_user.clients:
 					user = user
 					break
 
