@@ -222,7 +222,6 @@ class GroupProtocol(base.ChatangoProtocol):
 		else:
 			self._storage._aid = None
 		#shouldn't be necessary, but if the room assigns us a new id
-		print(args)
 		self._uid = int(args[1])
 		self._storage._owner = args[0]
 		self._storage._mods = set(User.init_mod(self._storage
@@ -259,7 +258,6 @@ class GroupProtocol(base.ChatangoProtocol):
 			for person in people:
 				self._storage._users.add(
 					User.init_g_participant(self._storage, person.split(':')))
-		print(self._storage.users, self._uid, args)
 		self._call_event("on_participants")
 
 	async def _recv_participant(self, args):
