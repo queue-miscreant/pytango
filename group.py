@@ -24,6 +24,8 @@ class User:
 	#TODO? args[2] in participants and gparticipants (for individual users)
 	#	contains the first 8 digits of the session ID; it is consistent across
 	#	browser tabs and usernames, but not between browsers
+	#TODO above is not saved, and is useful for identifying whether a message
+	#	belongs to a certain session
 	_AVATAR_URL = "http://fp.chatango.com/profileimg/{}/{}/{}/full.jpg"
 	def __init__(self, group, name: str, unid=None, join_time=None, mod_flags=0):
 		self._name = name
@@ -43,7 +45,7 @@ class User:
 			if self._clients else 0
 		, doc="Float representing earliest join time")
 	joined = property(lambda self: bool(self._clients)
-		, doc = "Whether the user currently exists within the group")
+		, doc="Whether the user currently exists within the group")
 	mod_flags = property(lambda self: self._mod_flags
 		, doc="ModFlags containing moderator permissions")
 	@property
@@ -891,7 +893,7 @@ class ModFlags(base.Flags):
 		, "Add and remove mods"			#2
 		, None							#4
 		, "Set banned content"			#8
-		, "Set chat	restrictions"		#16
+		, "Set chat restrictions"		#16
 		, "Edit group (title, MOTD, delete all)"
 		, "Delete messages"				#64
 		, "Ban/unban users"				#128
