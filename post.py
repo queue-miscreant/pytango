@@ -88,7 +88,7 @@ class Post:
 		message = ':'.join(raw[9:])
 
 		user = raw[1]
-		uid = int(raw[3]) #user session id
+		session_id = int(raw[3]) #user session id
 		if not user:
 			if raw[2]: #temp name
 				user = '#' + raw[2]
@@ -98,7 +98,7 @@ class Post:
 			n_color = ''
 		else:
 			for group_user in group._users:
-				if uid in group_user.clients:
+				if session_id in group_user.sessions:
 					user = user
 					break
 
@@ -114,10 +114,11 @@ class Post:
 		#magic that turns no badge into 0, mod badge into 1, and staff badge into 2
 		badge = (channels_and_badge >> 5) & 3
 		#magic that turns no channel into 0, red into 1, blue into 2, both into 3
+		#TODO moderater channel
 		channel = (channels_and_badge >> 8) & 31
 		channel = channel&1|((channel&8)>>2)|((channel&16)>>3)
 
-		return cls(float(raw[0]), message, group, user=user, user_id=uid
+		return cls(float(raw[0]), message, group, user=user, session_id=session_id
 			, mod_id=raw[4], unid=None, pnum=None, ip=raw[6]
 			, mentions=mentions, channel=channel, badge=badge
 			, n_color=n_color, f_color=f_color, f_size=f_size, f_face=f_face)

@@ -21,18 +21,14 @@ class User:
 	User in a particular Group. Contains all clients (i.e. browser tabs) the
 	user belongs to and moderator flags.
 	'''
-	#TODO? args[2] in participants and gparticipants (for individual users)
-	#	contains the first 8 digits of the session ID; it is consistent across
-	#	browser tabs and usernames, but not between browsers
-	#TODO above is not saved, and is useful for identifying whether a message
-	#	belongs to a certain session
 	_AVATAR_URL = "http://fp.chatango.com/profileimg/{}/{}/{}/full.jpg"
-	def __init__(self, group, name: str, unid=None, join_time=None, mod_flags=0):
+	def __init__(self, group, name: str, unid=None, session_id=None, join_time=None, mod_flags=0):
 		self._name = name
 		self._group = group
 		self._clients = {}
+		self._sessions = set()
 		if unid is not None and join_time is not None:
-			self.new_client(unid, join_time)
+			self.new_client(unid, session_id, join_time)
 		self._mod_flags = ModFlags(mod_flags)
 
 	name = property(lambda self: self._name
@@ -41,6 +37,9 @@ class User:
 		, doc="Group the User belongs to")
 	clients = property(lambda self: self._clients.copy()
 		, doc="Dict whose keys are client IDs and values are join times")
+	sessions = property(lambda self: self._sessions.copy()
+		, doc="Set of user sessions, which are consistent between browser "\
+			  "tabs/usernames, but not between browsers")
 	join_time = property(lambda self: min(self._clients.values()) \
 			if self._clients else 0
 		, doc="Float representing earliest join time")
@@ -104,9 +103,9 @@ class User:
 		for mod in group.mods:
 			if mod == username:
 				if joined:
-					mod.new_client(args[1], args[6])
+					mod.new_client(args[1], args[2], args[6])
 				else:
-					mod.remove_client(args[1])
+					mod.remove_client(args[1], args[2])
 				return mod, bool(joined)
 			#user logout occurred
 			if joined == 2 and int(args[1]) in mod.clients:
@@ -116,13 +115,13 @@ class User:
 		for user in group._users:
 			if user == username:
 				if joined:
-					user.new_client(args[1], args[6])
+					user.new_client(args[1], args[2], args[6])
 				else:
-					user.remove_client(args[1])
+					user.remove_client(args[1], args[2])
 				return user, bool(joined)
 			#user logout occurred
 			if joined == 2 and int(args[1]) in user.clients:
-				user.remove_client(args[1])
+				user.remove_client(args[1], args[2])
 				return user, False
 		#anon or user name setting occurred
 		if username == "None":
@@ -131,7 +130,7 @@ class User:
 			else:
 				username = "anon"
 			return username, True
-		return cls(group, username, unid=args[1], join_time=args[6]), True
+		return cls(group, username, unid=args[1], session_id=args[2], join_time=args[6]), True
 
 	@classmethod
 	def init_g_participant(cls, group, args):
@@ -148,21 +147,23 @@ class User:
 			if user == username:
 				user.new_client(args[0], args[1])
 				return user
-		return cls(group, args[3], unid=args[0], join_time=args[1])
+		return cls(group, args[3], unid=args[0], session_id=args[2], join_time=args[1])
 
 	def promote(self, flags):
 		'''Set the mod flags. Used internally when mods are promoted/demoted'''
 		self._mod_flags = ModFlags(int(flags))
 
-	def remove_client(self, unid):
+	def remove_client(self, unid, session_id):
 		'''Remove entry from clients. Used internally on user left'''
 		unid = int(unid)
 		if unid in self._clients:
 			del self._clients[int(unid)]
+		self._sessions.discard(session_id)
 
-	def new_client(self, unid, join_time):
+	def new_client(self, unid, session_id, join_time):
 		'''Add entry to clients. Used internally on user joined'''
 		self._clients[int(unid)] = float(join_time)
+		self._sessions.add(session_id)
 
 class Ban:
 	def __init__(self, user: str, ip: str, unid: str, mod: User, time: float):
