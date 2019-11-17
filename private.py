@@ -4,7 +4,7 @@
 Objects representing private messages and such connections in Chatango.
 Implements an asyncio-compatible protocol.
 '''
-#XXX VERY much a work in progress
+#XXX VERY much a work in progress (progress depending on your reference frame)
 #TODO	finish implementing
 #
 #		when receiving "track" commands in private messages, each "track" download
@@ -44,7 +44,7 @@ class PMProtocol(base.ChatangoProtocol):
 	def connection_made(self, transport):
 		'''Begins communication with and connects to the PM server'''
 		super().connection_made(transport)
-		self.send_command("tlogin", self.auth_key, self._uid, firstcmd=True)
+		self.send_command("tlogin", self.auth_key, self._session_id, firstcmd=True)
 
 	async def _recv_seller_name(self, *args):
 		#seller_name returns two arguments: the session id called with tlogin and
