@@ -141,12 +141,12 @@ class User:
 		#handle moderators changed
 		for mod in group.mods:
 			if mod == username:
-				mod.new_client(args[0], args[1])
+				mod.new_client(args[0], args[2], args[1])
 				return mod
 		#handle user changed
 		for user in group.users:
 			if user == username:
-				user.new_client(args[0], args[1])
+				user.new_client(args[0], args[2], args[1])
 				return user
 		return cls(group, args[3], unid=args[0], session_id=args[2], join_time=args[1])
 
