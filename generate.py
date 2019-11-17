@@ -30,7 +30,7 @@ _SPECIALS = {
 	, "eafangames": 56, "myfoxdfw": 67, "peliculas-flv": 69, "narutochatt": 70
 }
 
-def uid() -> str:
+def session_id() -> str:
 	'''Generate unique ID for a group. Might be reset by the server'''
 	return str(int(random.randrange(10 ** 15, (10 ** 16) - 1)))
 

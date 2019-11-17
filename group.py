@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 #group.py
+#TODO pwdok is sent for bauth commands that aren't the first. See if there's a corresponding NACK
 '''
 Objects representing Groups and Group connections in Chatango.
 Implements an asyncio-compatible protocol and provides classes for parsing raw
@@ -203,18 +204,17 @@ class GroupProtocol(base.ChatangoProtocol):
 
 	def connection_made(self, transport):
 		'''Begins communication with the server and connects to the room'''
-		#if i cared more, i'd put this property-setting in a super method
 		super().connection_made(transport)
-		self.send_command("bauth", self._storage._name, self._uid, self._manager.username,
-			self._manager.password, firstcmd=True)
+		self.send_command("bauth", self._storage._name, self._session_id
+			, self._manager.username, self._manager.password, firstcmd=True)
 
 	#COMMAND PARSING-----------------------------------------------------------
 	async def _recv_ok(self, args):
 		'''ACK that login succeeded'''
 		if args[2] == 'C':
-			if self._manager.username:
+			if self._manager.username: #set temporary name
 				self.send_command("blogin", self._manager.username)
-			else:
+			else: #reverse anon number lookup
 				aid = self._storage._aid
 				if aid is not None:
 					ncolor = generate.reverse_aid(aid, args[1])
@@ -224,8 +224,8 @@ class GroupProtocol(base.ChatangoProtocol):
 				self._storage._aid = generate.aid(ncolor, args[1])
 		else:
 			self._storage._aid = None
-		#shouldn't be necessary, but if the room assigns us a new id
-		self._uid = int(args[1])
+		#if the room assigns us a new id
+		self._session_id = int(args[1][:8])
 		self._storage._owner = args[0]
 		self._storage._mods = set(User.init_mod(self._storage
 			, mod.split(',')) for mod in args[6].split(';')) \
@@ -461,8 +461,9 @@ class Group(base.Connection):
 		if not self._protocol._manager.password:
 			ret = '#' + ret
 		return ret
-	session_id = property(lambda self: self._protocol._uid
-		, doc="Session ID. Different from client ID, which uniquely identifies each client/tab")
+	session_id = property(lambda self: self._protocol._session_id
+		, doc="Session ID. Different from client ID (i.e. keys of "\
+			  "`User.clients`), which uniquely identifies each client/tab")
 	name = property(lambda self: self._name
 		, doc="Name of the group")
 	owner = property(lambda self: self._owner
@@ -475,6 +476,8 @@ class Group(base.Connection):
 		, doc="A float containing the time of the last post obtained")
 	ready = property(lambda self: self._ready.wait()
 		, doc="Awaitable property for when the group is fully connected")
+	no_more = property(lambda self: self._protocol._no_more
+		, doc="True if no more messages can be retrieved with `get_more`")
 	#mod attributes
 	settings = property(lambda self: self._settings
 		, doc="GroupFlags currently active in the group or None, if not mod")

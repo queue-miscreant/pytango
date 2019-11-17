@@ -31,8 +31,8 @@ class ChatangoProtocol(asyncio.Protocol):
 		self._last_command = -1
 		self._rbuff = b""
 		self.connected = False
-		#user id
-		self._uid = generate.uid()
+		#session id
+		self._session_id = generate.session_id()
 
 	#########################################
 	#	Callbacks
